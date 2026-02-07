@@ -1,0 +1,13 @@
+{
+  "model_type": "xgboost",
+  "feature_names": [
+    "distance_to_merchant",
+    "hour_of_day",
+    "is_weekend",
+    "budget_utilization",
+    "merchant_regret_rate",
+    "dwell_time"
+  ],
+  "threshold": 0.7,
+  "notes": "Probability threshold used for nudges. Keep feature order consistent at inference."
+}
