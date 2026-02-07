@@ -15,7 +15,16 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pigeon.app"
+      "bundleIdentifier": "com.pigeon.app",
+      "infoPlist": {
+        "NSLocationAlwaysUsageDescription": "Pigeon monitors spending danger zones in the background to help you avoid regrettable purchases with instant, on-device AI nudges.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Pigeon monitors spending danger zones in the background to help you avoid regrettable purchases with instant, on-device AI nudges.",
+        "NSLocationWhenInUseUsageDescription": "Pigeon needs your location to identify nearby merchants and provide smart purchase nudges.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "package": "com.pigeon.app",
@@ -37,7 +46,8 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "./modules/on-device-predictor/plugin"
     ],
     "experiments": {
       "typedRoutes": true,

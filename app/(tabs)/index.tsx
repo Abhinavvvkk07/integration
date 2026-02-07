@@ -20,6 +20,7 @@ import FinanceTip from "@/components/FinanceTip";
 import { AnalyticsBlock } from "@/components/AnalyticsBlock";
 import { DangerZoneAlert } from "@/components/DangerZoneAlert";
 import { PurchaseNudge } from "@/components/PurchaseNudge";
+import { SilentGuardianControl } from "@/components/SilentGuardianControl";
 
 const DEMO_MODE_ENV = process.env.EXPO_PUBLIC_DEMO_MODE === "1";
 
@@ -423,6 +424,8 @@ export default function DashboardScreen() {
           </View>
 
           <AnalyticsBlock />
+
+          <SilentGuardianControl />
 
           <PurchaseNudge />
           <DangerZoneAlert />
