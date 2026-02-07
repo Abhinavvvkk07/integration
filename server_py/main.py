@@ -664,6 +664,121 @@ async def advisor_insights(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# --- PURCHASE PREDICTOR INTEGRATION ---
+from predictor_service import predictor_service
+
+@app.on_event("startup")
+async def load_predictor():
+    """Pre-load the purchase prediction model at server startup."""
+    predictor_service.load()
+
+
+@app.get("/api/predictor/danger-zones")
+async def get_danger_zones():
+    """Return all identified danger zones with geofence coordinates."""
+    try:
+        zones = predictor_service.get_danger_zones()
+        return {"danger_zones": zones, "count": len(zones)}
+    except Exception as e:
+        print(f"Danger zones error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/predictor/predict")
+async def predict_purchase(request: Request):
+    """
+    Predict purchase probability given contextual features.
+
+    Body:
+    {
+        "distance_to_merchant": 30,       // meters
+        "hour_of_day": 23,                // optional, auto-detected if missing
+        "is_weekend": 1,                  // optional, auto-detected if missing
+        "budget_utilization": 0.85,       // 0.0-1.0
+        "merchant_regret_rate": 0.7,      // 0.0-1.0
+        "dwell_time": 120,               // seconds
+        "lat": 40.444,                    // optional, for danger zone check
+        "lng": -79.943                    // optional, for danger zone check
+    }
+    """
+    try:
+        body = await request.json()
+
+        lat = body.pop("lat", None)
+        lng = body.pop("lng", None)
+
+        result = predictor_service.predict_for_transaction(
+            distance_meters=body.get("distance_to_merchant", 100),
+            budget_utilization=body.get("budget_utilization", 0.5),
+            merchant_regret_rate=body.get("merchant_regret_rate", 0.0),
+            dwell_time_seconds=body.get("dwell_time", 0),
+            lat=lat,
+            lng=lng,
+        )
+        return result
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/predictor/check-location")
+async def check_location(request: Request):
+    """
+    Check if the user's current location is in a danger zone.
+
+    Body: { "lat": 40.444, "lng": -79.943 }
+    """
+    try:
+        body = await request.json()
+        lat = body.get("lat")
+        lng = body.get("lng")
+
+        if lat is None or lng is None:
+            return JSONResponse({"error": "lat and lng are required"}, status_code=400)
+
+        zone = predictor_service.check_danger_zone(lat, lng)
+        return {
+            "in_danger_zone": zone is not None,
+            "danger_zone": zone,
+        }
+    except Exception as e:
+        print(f"Location check error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/predictor/batch-predict")
+async def batch_predict(request: Request):
+    """
+    Run predictions on multiple transactions for analytics.
+
+    Body: { "transactions": [ { ...features... }, ... ] }
+    """
+    try:
+        body = await request.json()
+        transactions = body.get("transactions", [])
+
+        results = []
+        for txn in transactions[:50]:  # Limit to 50 per batch
+            features = {
+                "distance_to_merchant": txn.get("distance_to_merchant", 100),
+                "hour_of_day": txn.get("hour_of_day", 12),
+                "is_weekend": txn.get("is_weekend", 0),
+                "budget_utilization": txn.get("budget_utilization", 0.5),
+                "merchant_regret_rate": txn.get("merchant_regret_rate", 0.0),
+                "dwell_time": txn.get("dwell_time", 0),
+            }
+            prediction = predictor_service.predict(features)
+            prediction["transaction_id"] = txn.get("transaction_id", None)
+            results.append(prediction)
+
+        return {"predictions": results, "count": len(results)}
+    except Exception as e:
+        print(f"Batch prediction error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# --- END PURCHASE PREDICTOR INTEGRATION ---
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", "5000"))

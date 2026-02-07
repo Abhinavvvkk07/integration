@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
+import {
+  fetchDangerZones,
+  predictPurchase,
+  type DangerZone,
+  type PurchasePrediction,
+} from "@/lib/predictor-service";
 
 export interface Account {
   account_id: string;
@@ -90,6 +96,11 @@ interface FinanceContextValue {
   surveyAnalysis: any;
   completeSurvey: (analysis: any) => Promise<void>;
   getSurveyContext: () => string;
+  // Purchase Predictor state
+  dangerZones: DangerZone[];
+  latestPrediction: PurchasePrediction | null;
+  refreshDangerZones: () => Promise<void>;
+  runPrediction: (budgetUtilization: number, merchantRegretRate: number, lat?: number, lng?: number) => Promise<PurchasePrediction | null>;
 }
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
@@ -138,8 +149,47 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [isSurveyCompleted, setIsSurveyCompleted] = useState(false);
   const [surveyAnalysis, setSurveyAnalysis] = useState<any>(null);
 
+  // Purchase Predictor state
+  const [dangerZones, setDangerZones] = useState<DangerZone[]>([]);
+  const [latestPrediction, setLatestPrediction] = useState<PurchasePrediction | null>(null);
+
+  const refreshDangerZones = useCallback(async () => {
+    try {
+      const zones = await fetchDangerZones();
+      setDangerZones(zones);
+    } catch (e) {
+      console.warn("Failed to refresh danger zones:", e);
+    }
+  }, []);
+
+  const runPrediction = useCallback(async (
+    budgetUtilization: number,
+    merchantRegretRate: number,
+    lat?: number,
+    lng?: number,
+  ): Promise<PurchasePrediction | null> => {
+    try {
+      const result = await predictPurchase({
+        distance_to_merchant: 50,
+        budget_utilization: budgetUtilization,
+        merchant_regret_rate: merchantRegretRate,
+        dwell_time: 120,
+        lat,
+        lng,
+      });
+      if (result) {
+        setLatestPrediction(result);
+      }
+      return result;
+    } catch (e) {
+      console.warn("Failed to run prediction:", e);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     checkSurveyStatus();
+    refreshDangerZones();
     if (DEMO_MODE_ENV) {
       loadDemoData();
     }
@@ -739,8 +789,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       });
     }
 
+    // Purchase Predictor context
+    if (dangerZones.length > 0) {
+      context += "\nDanger Zones (locations with high regret spending):\n";
+      dangerZones.forEach((z) => {
+        context += `- ${z.merchant}: ${z.regret_count} regretted purchases (${z.lat.toFixed(3)}, ${z.lng.toFixed(3)})\n`;
+      });
+    }
+
+    if (latestPrediction) {
+      context += `\nPurchase Prediction: ${Math.round(latestPrediction.probability * 100)}% probability (${latestPrediction.risk_level} risk)`;
+      if (latestPrediction.should_nudge) {
+        context += " — NUDGE ACTIVE";
+      }
+      context += "\n";
+    }
+
     return context;
-  }, [accounts, transactions, budgets, totalNetWorth]);
+  }, [accounts, transactions, budgets, totalNetWorth, dangerZones, latestPrediction]);
 
   const getSurveyContext = useCallback(() => {
     if (!surveyAnalysis) return "";
@@ -792,7 +858,12 @@ behavioral_insights:
     surveyAnalysis,
     completeSurvey,
     getSurveyContext,
-  }), [isConnected, isDemoMode, isLoading, accounts, transactions, categorySpending, regretMetrics, topRegretTransactions, behavioralSummary, budgets, netWorthHistory, totalNetWorth, connectionError, dismissError, connectBank, disconnectBank, loadDemoData, refreshData, updateBudget, addBudgetCategory, deleteBudgetCategory, getFinancialContext, isSurveyCompleted, surveyAnalysis, completeSurvey, getSurveyContext]);
+    // Purchase Predictor
+    dangerZones,
+    latestPrediction,
+    refreshDangerZones,
+    runPrediction,
+  }), [isConnected, isDemoMode, isLoading, accounts, transactions, categorySpending, regretMetrics, topRegretTransactions, behavioralSummary, budgets, netWorthHistory, totalNetWorth, connectionError, dismissError, connectBank, disconnectBank, loadDemoData, refreshData, updateBudget, addBudgetCategory, deleteBudgetCategory, getFinancialContext, isSurveyCompleted, surveyAnalysis, completeSurvey, getSurveyContext, dangerZones, latestPrediction, refreshDangerZones, runPrediction]);
 
   return (
     <FinanceContext.Provider value={value}>
