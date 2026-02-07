@@ -1,0 +1,1641 @@
+diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
+index 4f73447..95f5c8d 100644
+--- a/app/(tabs)/index.tsx
++++ b/app/(tabs)/index.tsx
+@@ -18,6 +18,8 @@ import { useFinance } from "@/lib/finance-context";
+ import Colors from "@/constants/colors";
+ import FinanceTip from "@/components/FinanceTip";
+ import { AnalyticsBlock } from "@/components/AnalyticsBlock";
++import { DangerZoneAlert } from "@/components/DangerZoneAlert";
++import { PurchaseNudge } from "@/components/PurchaseNudge";
+ 
+ const DEMO_MODE_ENV = process.env.EXPO_PUBLIC_DEMO_MODE === "1";
+ 
+@@ -422,6 +424,9 @@ export default function DashboardScreen() {
+ 
+           <AnalyticsBlock />
+ 
++          <PurchaseNudge />
++          <DangerZoneAlert />
++
+           <SpendingOverview transactions={transactions} />
+           <BudgetProgress budgets={budgets} />
+ 
+diff --git a/components/DangerZoneAlert.tsx b/components/DangerZoneAlert.tsx
+new file mode 100644
+index 0000000..a9cb398
+--- /dev/null
++++ b/components/DangerZoneAlert.tsx
+@@ -0,0 +1,173 @@
++/**
++ * DangerZoneAlert — Displays danger zone warnings on the dashboard.
++ *
++ * Shows locations where the user historically regrets spending,
++ * integrated from the Purchase Predictor ML pipeline.
++ *
++ * Source: https://github.com/Abhinavvvkk07/pp_roots
++ */
++
++import React from "react";
++import { View, Text, StyleSheet, Pressable } from "react-native";
++import { Ionicons, MaterialIcons } from "@expo/vector-icons";
++import Colors from "@/constants/colors";
++import { useFinance } from "@/lib/finance-context";
++
++export function DangerZoneAlert() {
++  const { dangerZones } = useFinance();
++
++  if (dangerZones.length === 0) return null;
++
++  const totalRegrets = dangerZones.reduce((sum, z) => sum + z.regret_count, 0);
++
++  return (
++    <View style={styles.container}>
++      <View style={styles.header}>
++        <View style={styles.iconWrap}>
++          <Ionicons name="warning" size={20} color={Colors.light.neonYellow} />
++        </View>
++        <View style={styles.headerText}>
++          <Text style={styles.title}>Spending Danger Zones</Text>
++          <Text style={styles.subtitle}>
++            {dangerZones.length} location{dangerZones.length !== 1 ? "s" : ""} flagged
++            {" "}({totalRegrets} total regrets)
++          </Text>
++        </View>
++      </View>
++
++      <View style={styles.zoneList}>
++        {dangerZones.map((zone, index) => (
++          <View key={`${zone.merchant}-${index}`} style={styles.zoneItem}>
++            <View style={styles.zoneIcon}>
++              <MaterialIcons name="location-on" size={16} color={Colors.light.negative} />
++            </View>
++            <View style={styles.zoneInfo}>
++              <Text style={styles.zoneName}>{zone.merchant}</Text>
++              <Text style={styles.zoneCoords}>
++                {zone.lat.toFixed(3)}, {zone.lng.toFixed(3)}
++              </Text>
++            </View>
++            <View style={styles.regretBadge}>
++              <Text style={styles.regretCount}>{zone.regret_count}</Text>
++              <Text style={styles.regretLabel}>regrets</Text>
++            </View>
++          </View>
++        ))}
++      </View>
++
++      <View style={styles.infoBar}>
++        <Ionicons name="shield-checkmark" size={14} color={Colors.light.tint} />
++        <Text style={styles.infoText}>
++          AI-powered geofence alerts will nudge you near these spots
++        </Text>
++      </View>
++    </View>
++  );
++}
++
++const styles = StyleSheet.create({
++  container: {
++    backgroundColor: Colors.light.surface,
++    borderRadius: 20,
++    padding: 20,
++    marginBottom: 20,
++    borderWidth: 1,
++    borderColor: "rgba(255, 229, 0, 0.2)",
++  },
++  header: {
++    flexDirection: "row",
++    alignItems: "center",
++    marginBottom: 16,
++    gap: 12,
++  },
++  iconWrap: {
++    width: 40,
++    height: 40,
++    borderRadius: 12,
++    backgroundColor: "rgba(255, 229, 0, 0.12)",
++    alignItems: "center",
++    justifyContent: "center",
++  },
++  headerText: {
++    flex: 1,
++  },
++  title: {
++    fontSize: 16,
++    fontFamily: "DMSans_600SemiBold",
++    color: Colors.light.text,
++  },
++  subtitle: {
++    fontSize: 12,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.textSecondary,
++    marginTop: 2,
++  },
++  zoneList: {
++    gap: 10,
++  },
++  zoneItem: {
++    flexDirection: "row",
++    alignItems: "center",
++    backgroundColor: Colors.light.surfaceElevated,
++    borderRadius: 12,
++    padding: 12,
++    gap: 10,
++  },
++  zoneIcon: {
++    width: 32,
++    height: 32,
++    borderRadius: 10,
++    backgroundColor: Colors.light.negativeLight,
++    alignItems: "center",
++    justifyContent: "center",
++  },
++  zoneInfo: {
++    flex: 1,
++  },
++  zoneName: {
++    fontSize: 14,
++    fontFamily: "DMSans_600SemiBold",
++    color: Colors.light.text,
++  },
++  zoneCoords: {
++    fontSize: 11,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.textTertiary,
++    marginTop: 1,
++  },
++  regretBadge: {
++    alignItems: "center",
++    paddingHorizontal: 10,
++    paddingVertical: 4,
++    backgroundColor: Colors.light.negativeLight,
++    borderRadius: 10,
++  },
++  regretCount: {
++    fontSize: 16,
++    fontFamily: "DMSans_700Bold",
++    color: Colors.light.negative,
++  },
++  regretLabel: {
++    fontSize: 9,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.negative,
++    marginTop: -1,
++  },
++  infoBar: {
++    flexDirection: "row",
++    alignItems: "center",
++    gap: 8,
++    marginTop: 14,
++    paddingTop: 12,
++    borderTopWidth: 1,
++    borderTopColor: Colors.light.border,
++  },
++  infoText: {
++    fontSize: 12,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.textTertiary,
++    flex: 1,
++  },
++});
++
++export default DangerZoneAlert;
+diff --git a/components/PurchaseNudge.tsx b/components/PurchaseNudge.tsx
+new file mode 100644
+index 0000000..13ad218
+--- /dev/null
++++ b/components/PurchaseNudge.tsx
+@@ -0,0 +1,353 @@
++/**
++ * PurchaseNudge — Smart spending nudge card for the dashboard.
++ *
++ * Shows the ML model's prediction of purchase probability and
++ * provides actionable nudge feedback. Uses the XGBoost model from
++ * the Purchase Predictor pipeline.
++ *
++ * Source: https://github.com/Abhinavvvkk07/pp_roots
++ */
++
++import React, { useEffect, useState } from "react";
++import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
++import { Ionicons, MaterialIcons } from "@expo/vector-icons";
++import { LinearGradient } from "expo-linear-gradient";
++import Colors from "@/constants/colors";
++import { useFinance } from "@/lib/finance-context";
++
++function getRiskColor(level: string): string {
++  switch (level) {
++    case "high":
++      return Colors.light.negative;
++    case "medium":
++      return Colors.light.neonYellow;
++    case "low":
++      return Colors.light.positive;
++    default:
++      return Colors.light.textSecondary;
++  }
++}
++
++function getRiskIcon(level: string): string {
++  switch (level) {
++    case "high":
++      return "flame";
++    case "medium":
++      return "alert-circle";
++    case "low":
++      return "checkmark-circle";
++    default:
++      return "help-circle";
++  }
++}
++
++function getRiskMessage(prediction: {
++  probability: number;
++  risk_level: string;
++  should_nudge: boolean;
++  in_danger_zone?: boolean;
++}): string {
++  if (prediction.in_danger_zone && prediction.should_nudge) {
++    return "You're near a danger zone and likely to spend. Take a moment to reconsider.";
++  }
++  if (prediction.should_nudge) {
++    return "High purchase probability detected. Is this a planned expense?";
++  }
++  if (prediction.risk_level === "medium") {
++    return "Moderate spending risk. Stay mindful of your budget.";
++  }
++  return "Spending risk is low. You're on track with your budget.";
++}
++
++export function PurchaseNudge() {
++  const { latestPrediction, budgets, transactions, runPrediction } = useFinance();
++  const [isRunning, setIsRunning] = useState(false);
++
++  // Auto-run a prediction based on current financial state
++  useEffect(() => {
++    if (transactions.length === 0 || budgets.length === 0) return;
++
++    const totalLimit = budgets.reduce((sum, b) => sum + b.limit, 0);
++    const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
++    const budgetUtilization = totalLimit > 0 ? totalSpent / totalLimit : 0.5;
++
++    // Calculate avg regret rate from transactions
++    const regretTxns = transactions.filter((t) => (t.regretScore || 0) > 50);
++    const merchantRegretRate = transactions.length > 0 ? regretTxns.length / transactions.length : 0;
++
++    runPrediction(budgetUtilization, merchantRegretRate).catch(() => {});
++  }, [transactions.length, budgets]);
++
++  const handleRefresh = async () => {
++    setIsRunning(true);
++    try {
++      const totalLimit = budgets.reduce((sum, b) => sum + b.limit, 0);
++      const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);
++      const budgetUtilization = totalLimit > 0 ? totalSpent / totalLimit : 0.5;
++
++      const regretTxns = transactions.filter((t) => (t.regretScore || 0) > 50);
++      const merchantRegretRate = transactions.length > 0 ? regretTxns.length / transactions.length : 0;
++
++      await runPrediction(budgetUtilization, merchantRegretRate);
++    } finally {
++      setIsRunning(false);
++    }
++  };
++
++  if (!latestPrediction) return null;
++
++  const prediction = latestPrediction;
++  const riskColor = getRiskColor(prediction.risk_level);
++  const riskIcon = getRiskIcon(prediction.risk_level);
++  const probabilityPercent = Math.round(prediction.probability * 100);
++
++  return (
++    <View style={styles.container}>
++      {/* Header */}
++      <View style={styles.header}>
++        <View style={[styles.iconWrap, { backgroundColor: `${riskColor}20` }]}>
++          <Ionicons name={riskIcon as any} size={20} color={riskColor} />
++        </View>
++        <View style={styles.headerText}>
++          <Text style={styles.title}>Smart Spending Nudge</Text>
++          <Text style={styles.modelBadge}>
++            {prediction.model_type === "xgboost" ? "ML Model" : "Heuristic"} Analysis
++          </Text>
++        </View>
++        <Pressable onPress={handleRefresh} disabled={isRunning} style={styles.refreshBtn}>
++          {isRunning ? (
++            <ActivityIndicator size="small" color={Colors.light.tint} />
++          ) : (
++            <Ionicons name="refresh" size={18} color={Colors.light.textSecondary} />
++          )}
++        </Pressable>
++      </View>
++
++      {/* Probability Gauge */}
++      <View style={styles.gaugeSection}>
++        <View style={styles.gaugeRow}>
++          <Text style={styles.gaugeLabel}>Purchase Probability</Text>
++          <Text style={[styles.gaugeValue, { color: riskColor }]}>{probabilityPercent}%</Text>
++        </View>
++        <View style={styles.gaugeBarBg}>
++          <View
++            style={[
++              styles.gaugeBarFill,
++              {
++                width: `${Math.min(probabilityPercent, 100)}%`,
++                backgroundColor: riskColor,
++              },
++            ]}
++          />
++          {/* Threshold marker */}
++          <View
++            style={[
++              styles.thresholdMarker,
++              { left: `${prediction.threshold * 100}%` },
++            ]}
++          />
++        </View>
++        <View style={styles.gaugeLegend}>
++          <Text style={styles.gaugeLegendText}>Low</Text>
++          <Text style={styles.gaugeLegendThreshold}>
++            Nudge threshold: {Math.round(prediction.threshold * 100)}%
++          </Text>
++          <Text style={styles.gaugeLegendText}>High</Text>
++        </View>
++      </View>
++
++      {/* Risk Message */}
++      <View style={[styles.messageBox, { borderLeftColor: riskColor }]}>
++        <Text style={styles.messageText}>{getRiskMessage(prediction)}</Text>
++      </View>
++
++      {/* Risk Level Badge */}
++      <View style={styles.footer}>
++        <View style={[styles.riskBadge, { backgroundColor: `${riskColor}20` }]}>
++          <View style={[styles.riskDot, { backgroundColor: riskColor }]} />
++          <Text style={[styles.riskText, { color: riskColor }]}>
++            {prediction.risk_level.toUpperCase()} RISK
++          </Text>
++        </View>
++        {prediction.should_nudge && (
++          <View style={styles.nudgeBadge}>
++            <Ionicons name="notifications" size={12} color={Colors.light.neonYellow} />
++            <Text style={styles.nudgeText}>Nudge Active</Text>
++          </View>
++        )}
++        {prediction.in_danger_zone && (
++          <View style={styles.dangerBadge}>
++            <MaterialIcons name="location-on" size={12} color={Colors.light.negative} />
++            <Text style={styles.dangerText}>Danger Zone</Text>
++          </View>
++        )}
++      </View>
++    </View>
++  );
++}
++
++const styles = StyleSheet.create({
++  container: {
++    backgroundColor: Colors.light.surface,
++    borderRadius: 20,
++    padding: 20,
++    marginBottom: 20,
++    borderWidth: 1,
++    borderColor: Colors.light.border,
++  },
++  header: {
++    flexDirection: "row",
++    alignItems: "center",
++    marginBottom: 16,
++    gap: 12,
++  },
++  iconWrap: {
++    width: 40,
++    height: 40,
++    borderRadius: 12,
++    alignItems: "center",
++    justifyContent: "center",
++  },
++  headerText: {
++    flex: 1,
++  },
++  title: {
++    fontSize: 16,
++    fontFamily: "DMSans_600SemiBold",
++    color: Colors.light.text,
++  },
++  modelBadge: {
++    fontSize: 11,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.textTertiary,
++    marginTop: 1,
++  },
++  refreshBtn: {
++    width: 36,
++    height: 36,
++    borderRadius: 10,
++    backgroundColor: Colors.light.surfaceElevated,
++    alignItems: "center",
++    justifyContent: "center",
++  },
++  gaugeSection: {
++    marginBottom: 16,
++  },
++  gaugeRow: {
++    flexDirection: "row",
++    justifyContent: "space-between",
++    alignItems: "center",
++    marginBottom: 8,
++  },
++  gaugeLabel: {
++    fontSize: 13,
++    fontFamily: "DMSans_500Medium",
++    color: Colors.light.textSecondary,
++  },
++  gaugeValue: {
++    fontSize: 22,
++    fontFamily: "DMSans_700Bold",
++  },
++  gaugeBarBg: {
++    height: 10,
++    backgroundColor: Colors.light.surfaceElevated,
++    borderRadius: 5,
++    overflow: "visible",
++    position: "relative",
++  },
++  gaugeBarFill: {
++    height: "100%",
++    borderRadius: 5,
++  },
++  thresholdMarker: {
++    position: "absolute",
++    top: -3,
++    width: 2,
++    height: 16,
++    backgroundColor: Colors.light.text,
++    borderRadius: 1,
++    marginLeft: -1,
++  },
++  gaugeLegend: {
++    flexDirection: "row",
++    justifyContent: "space-between",
++    alignItems: "center",
++    marginTop: 6,
++  },
++  gaugeLegendText: {
++    fontSize: 10,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.textTertiary,
++  },
++  gaugeLegendThreshold: {
++    fontSize: 10,
++    fontFamily: "DMSans_500Medium",
++    color: Colors.light.textSecondary,
++  },
++  messageBox: {
++    backgroundColor: Colors.light.surfaceElevated,
++    borderRadius: 12,
++    padding: 14,
++    borderLeftWidth: 3,
++    marginBottom: 14,
++  },
++  messageText: {
++    fontSize: 13,
++    fontFamily: "DMSans_400Regular",
++    color: Colors.light.text,
++    lineHeight: 19,
++  },
++  footer: {
++    flexDirection: "row",
++    flexWrap: "wrap",
++    gap: 8,
++  },
++  riskBadge: {
++    flexDirection: "row",
++    alignItems: "center",
++    paddingHorizontal: 10,
++    paddingVertical: 5,
++    borderRadius: 10,
++    gap: 6,
++  },
++  riskDot: {
++    width: 6,
++    height: 6,
++    borderRadius: 3,
++  },
++  riskText: {
++    fontSize: 11,
++    fontFamily: "DMSans_700Bold",
++    letterSpacing: 0.5,
++  },
++  nudgeBadge: {
++    flexDirection: "row",
++    alignItems: "center",
++    paddingHorizontal: 10,
++    paddingVertical: 5,
++    borderRadius: 10,
++    backgroundColor: "rgba(255, 229, 0, 0.12)",
++    gap: 4,
++  },
++  nudgeText: {
++    fontSize: 11,
++    fontFamily: "DMSans_600SemiBold",
++    color: Colors.light.neonYellow,
++  },
++  dangerBadge: {
++    flexDirection: "row",
++    alignItems: "center",
++    paddingHorizontal: 10,
++    paddingVertical: 5,
++    borderRadius: 10,
++    backgroundColor: Colors.light.negativeLight,
++    gap: 4,
++  },
++  dangerText: {
++    fontSize: 11,
++    fontFamily: "DMSans_600SemiBold",
++    color: Colors.light.negative,
++  },
++});
++
++export default PurchaseNudge;
+diff --git a/lib/finance-context.tsx b/lib/finance-context.tsx
+index a43688d..745c005 100644
+--- a/lib/finance-context.tsx
++++ b/lib/finance-context.tsx
+@@ -1,6 +1,12 @@
+ import { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from "react";
+ import AsyncStorage from "@react-native-async-storage/async-storage";
+ import { apiRequest, getApiUrl } from "@/lib/query-client";
++import {
++  fetchDangerZones,
++  predictPurchase,
++  type DangerZone,
++  type PurchasePrediction,
++} from "@/lib/predictor-service";
+ 
+ export interface Account {
+   account_id: string;
+@@ -90,6 +96,11 @@ interface FinanceContextValue {
+   surveyAnalysis: any;
+   completeSurvey: (analysis: any) => Promise<void>;
+   getSurveyContext: () => string;
++  // Purchase Predictor state
++  dangerZones: DangerZone[];
++  latestPrediction: PurchasePrediction | null;
++  refreshDangerZones: () => Promise<void>;
++  runPrediction: (budgetUtilization: number, merchantRegretRate: number, lat?: number, lng?: number) => Promise<PurchasePrediction | null>;
+ }
+ 
+ const FinanceContext = createContext<FinanceContextValue | null>(null);
+@@ -138,8 +149,47 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
+   const [isSurveyCompleted, setIsSurveyCompleted] = useState(false);
+   const [surveyAnalysis, setSurveyAnalysis] = useState<any>(null);
+ 
++  // Purchase Predictor state
++  const [dangerZones, setDangerZones] = useState<DangerZone[]>([]);
++  const [latestPrediction, setLatestPrediction] = useState<PurchasePrediction | null>(null);
++
++  const refreshDangerZones = useCallback(async () => {
++    try {
++      const zones = await fetchDangerZones();
++      setDangerZones(zones);
++    } catch (e) {
++      console.warn("Failed to refresh danger zones:", e);
++    }
++  }, []);
++
++  const runPrediction = useCallback(async (
++    budgetUtilization: number,
++    merchantRegretRate: number,
++    lat?: number,
++    lng?: number,
++  ): Promise<PurchasePrediction | null> => {
++    try {
++      const result = await predictPurchase({
++        distance_to_merchant: 50,
++        budget_utilization: budgetUtilization,
++        merchant_regret_rate: merchantRegretRate,
++        dwell_time: 120,
++        lat,
++        lng,
++      });
++      if (result) {
++        setLatestPrediction(result);
++      }
++      return result;
++    } catch (e) {
++      console.warn("Failed to run prediction:", e);
++      return null;
++    }
++  }, []);
++
+   useEffect(() => {
+     checkSurveyStatus();
++    refreshDangerZones();
+     if (DEMO_MODE_ENV) {
+       loadDemoData();
+     }
+@@ -739,8 +789,24 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
+       });
+     }
+ 
++    // Purchase Predictor context
++    if (dangerZones.length > 0) {
++      context += "\nDanger Zones (locations with high regret spending):\n";
++      dangerZones.forEach((z) => {
++        context += `- ${z.merchant}: ${z.regret_count} regretted purchases (${z.lat.toFixed(3)}, ${z.lng.toFixed(3)})\n`;
++      });
++    }
++
++    if (latestPrediction) {
++      context += `\nPurchase Prediction: ${Math.round(latestPrediction.probability * 100)}% probability (${latestPrediction.risk_level} risk)`;
++      if (latestPrediction.should_nudge) {
++        context += " — NUDGE ACTIVE";
++      }
++      context += "\n";
++    }
++
+     return context;
+-  }, [accounts, transactions, budgets, totalNetWorth]);
++  }, [accounts, transactions, budgets, totalNetWorth, dangerZones, latestPrediction]);
+ 
+   const getSurveyContext = useCallback(() => {
+     if (!surveyAnalysis) return "";
+@@ -792,7 +858,12 @@ behavioral_insights:
+     surveyAnalysis,
+     completeSurvey,
+     getSurveyContext,
+-  }), [isConnected, isDemoMode, isLoading, accounts, transactions, categorySpending, regretMetrics, topRegretTransactions, behavioralSummary, budgets, netWorthHistory, totalNetWorth, connectionError, dismissError, connectBank, disconnectBank, loadDemoData, refreshData, updateBudget, addBudgetCategory, deleteBudgetCategory, getFinancialContext, isSurveyCompleted, surveyAnalysis, completeSurvey, getSurveyContext]);
++    // Purchase Predictor
++    dangerZones,
++    latestPrediction,
++    refreshDangerZones,
++    runPrediction,
++  }), [isConnected, isDemoMode, isLoading, accounts, transactions, categorySpending, regretMetrics, topRegretTransactions, behavioralSummary, budgets, netWorthHistory, totalNetWorth, connectionError, dismissError, connectBank, disconnectBank, loadDemoData, refreshData, updateBudget, addBudgetCategory, deleteBudgetCategory, getFinancialContext, isSurveyCompleted, surveyAnalysis, completeSurvey, getSurveyContext, dangerZones, latestPrediction, refreshDangerZones, runPrediction]);
+ 
+   return (
+     <FinanceContext.Provider value={value}>
+diff --git a/lib/predictor-service.ts b/lib/predictor-service.ts
+new file mode 100644
+index 0000000..5cc59ec
+--- /dev/null
++++ b/lib/predictor-service.ts
+@@ -0,0 +1,112 @@
++/**
++ * Purchase Predictor API Client
++ *
++ * Communicates with the /api/predictor/* backend endpoints
++ * to provide purchase prediction and danger zone awareness.
++ *
++ * Integrated from: https://github.com/Abhinavvvkk07/pp_roots
++ */
++
++import { apiRequest } from "@/lib/query-client";
++
++export interface DangerZone {
++  merchant: string;
++  lat: number;
++  lng: number;
++  regret_count: number;
++  distance_km?: number;
++}
++
++export interface PurchasePrediction {
++  probability: number;
++  should_nudge: boolean;
++  risk_level: "low" | "medium" | "high";
++  threshold: number;
++  model_type: "xgboost" | "heuristic";
++  in_danger_zone?: boolean;
++  danger_zone?: DangerZone | null;
++  nudge_reason?: string;
++}
++
++export interface PredictionInput {
++  distance_to_merchant: number;
++  budget_utilization: number;
++  merchant_regret_rate: number;
++  dwell_time?: number;
++  lat?: number;
++  lng?: number;
++}
++
++/**
++ * Fetch all identified danger zones from the server.
++ */
++export async function fetchDangerZones(): Promise<DangerZone[]> {
++  try {
++    const res = await apiRequest("GET", "/api/predictor/danger-zones");
++    const data = await res.json();
++    return data.danger_zones || [];
++  } catch (e) {
++    console.warn("Failed to fetch danger zones:", e);
++    return [];
++  }
++}
++
++/**
++ * Run a purchase prediction for a single scenario.
++ */
++export async function predictPurchase(
++  input: PredictionInput
++): Promise<PurchasePrediction | null> {
++  try {
++    const res = await apiRequest("POST", "/api/predictor/predict", input);
++    return await res.json();
++  } catch (e) {
++    console.warn("Failed to predict purchase:", e);
++    return null;
++  }
++}
++
++/**
++ * Check if a geographic coordinate falls within a danger zone.
++ */
++export async function checkLocation(
++  lat: number,
++  lng: number
++): Promise<{ in_danger_zone: boolean; danger_zone: DangerZone | null }> {
++  try {
++    const res = await apiRequest("POST", "/api/predictor/check-location", {
++      lat,
++      lng,
++    });
++    return await res.json();
++  } catch (e) {
++    console.warn("Failed to check location:", e);
++    return { in_danger_zone: false, danger_zone: null };
++  }
++}
++
++/**
++ * Batch predict for multiple transaction scenarios at once.
++ */
++export async function batchPredict(
++  transactions: Array<{
++    transaction_id?: string;
++    distance_to_merchant?: number;
++    hour_of_day?: number;
++    is_weekend?: number;
++    budget_utilization?: number;
++    merchant_regret_rate?: number;
++    dwell_time?: number;
++  }>
++): Promise<PurchasePrediction[]> {
++  try {
++    const res = await apiRequest("POST", "/api/predictor/batch-predict", {
++      transactions,
++    });
++    const data = await res.json();
++    return data.predictions || [];
++  } catch (e) {
++    console.warn("Failed to batch predict:", e);
++    return [];
++  }
++}
+diff --git a/purchase_predictor/data/danger_zones.json b/purchase_predictor/data/danger_zones.json
+new file mode 100644
+index 0000000..57ffdcd
+--- /dev/null
++++ b/purchase_predictor/data/danger_zones.json
+@@ -0,0 +1 @@
++[{"merchant":"Tech Store","lat":40.43,"lng":-79.95,"regret_count":7},{"merchant":"The Dive Bar","lat":40.444,"lng":-79.943,"regret_count":21}]
+diff --git a/purchase_predictor/models/purchase_predictor_meta.json b/purchase_predictor/models/purchase_predictor_meta.json
+new file mode 100644
+index 0000000..8bddd8e
+--- /dev/null
++++ b/purchase_predictor/models/purchase_predictor_meta.json
+@@ -0,0 +1,13 @@
++{
++  "model_type": "xgboost",
++  "feature_names": [
++    "distance_to_merchant",
++    "hour_of_day",
++    "is_weekend",
++    "budget_utilization",
++    "merchant_regret_rate",
++    "dwell_time"
++  ],
++  "threshold": 0.70,
++  "notes": "Probability threshold used for nudges. Keep feature order consistent at inference."
++}
+diff --git a/purchase_predictor/requirements.txt b/purchase_predictor/requirements.txt
+new file mode 100644
+index 0000000..119724c
+--- /dev/null
++++ b/purchase_predictor/requirements.txt
+@@ -0,0 +1,5 @@
++pandas
++numpy
++scikit-learn
++xgboost>=2.0.0
++coremltools
+diff --git a/purchase_predictor/src/convert.py b/purchase_predictor/src/convert.py
+new file mode 100644
+index 0000000..e915a39
+--- /dev/null
++++ b/purchase_predictor/src/convert.py
+@@ -0,0 +1,48 @@
++import json
++import coremltools as ct
++import xgboost as xgb
++from pathlib import Path
++
++# ---- Paths ----
++ROOT = Path(__file__).resolve().parents[1]
++MODEL_PATH = ROOT / "models" / "purchase_predictor.json"
++META_PATH = ROOT / "models" / "purchase_predictor_meta.json"
++OUTPUT_PATH = ROOT / "models" / "PurchasePredictor.mlmodel"
++
++# ---- Load metadata ----
++with open(META_PATH) as f:
++    meta = json.load(f)
++
++feature_names = meta["feature_names"]
++print(f"Features: {feature_names}")
++
++# ---- Load the trained XGBoost booster ----
++booster = xgb.Booster()
++booster.load_model(str(MODEL_PATH))
++print("Loaded XGBoost model")
++
++# ---- Convert to CoreML ----
++coreml_model = ct.converters.xgboost.convert(
++    booster,
++    feature_names=feature_names,
++    target="purchase_occurred",
++    force_32bit_float=True,
++    mode="classifier",
++    class_labels=[0, 1],
++)
++
++# ---- Add model metadata (visible in Xcode) ----
++coreml_model.author = "Purchase Predictor"
++coreml_model.short_description = (
++    "Predicts whether a user will make a purchase based on contextual signals."
++)
++coreml_model.input_description["distance_to_merchant"] = "Distance to merchant in meters"
++coreml_model.input_description["hour_of_day"] = "Hour of the day (0-23)"
++coreml_model.input_description["is_weekend"] = "Whether it is a weekend (0 or 1)"
++coreml_model.input_description["budget_utilization"] = "Budget utilization ratio (0.0-1.0)"
++coreml_model.input_description["merchant_regret_rate"] = "Merchant regret rate (0.0-1.0)"
++coreml_model.input_description["dwell_time"] = "Dwell time in seconds"
++
++# ---- Save ----
++coreml_model.save(str(OUTPUT_PATH))
++print(f"\nConverted to CoreML: {OUTPUT_PATH}")
+diff --git a/purchase_predictor/src/convert_sklearn_coreml.py b/purchase_predictor/src/convert_sklearn_coreml.py
+new file mode 100644
+index 0000000..fbf7b3b
+--- /dev/null
++++ b/purchase_predictor/src/convert_sklearn_coreml.py
+@@ -0,0 +1,28 @@
++from pathlib import Path
++import joblib
++import coremltools as ct
++
++ROOT = Path(__file__).resolve().parent.parent
++MODELS = ROOT / "models"
++
++MODEL_FILE = MODELS / "purchase_predictor_sklearn.joblib"
++OUT_FILE = MODELS / "PurchasePredictor.mlmodel"
++
++print("Loading:", MODEL_FILE)
++model = joblib.load(MODEL_FILE)
++
++# Use coremltools sklearn converter
++mlmodel = ct.converters.sklearn.convert(
++    model,
++    input_features=[
++        ("distance_to_merchant", ct.models.datatypes.Double()),
++        ("hour_of_day", ct.models.datatypes.Double()),
++        ("is_weekend", ct.models.datatypes.Double()),
++        ("budget_utilization", ct.models.datatypes.Double()),
++        ("merchant_regret_rate", ct.models.datatypes.Double()),
++        ("dwell_time", ct.models.datatypes.Double()),
++    ],
++)
++
++mlmodel.save(str(OUT_FILE))
++print("Saved CoreML model:", OUT_FILE)
+diff --git a/purchase_predictor/src/find_danger_zones.py b/purchase_predictor/src/find_danger_zones.py
+new file mode 100644
+index 0000000..95286ce
+--- /dev/null
++++ b/purchase_predictor/src/find_danger_zones.py
+@@ -0,0 +1,28 @@
++import pandas as pd
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++DATA_PATH = ROOT / "data" / "user_transaction_history.csv"
++OUT_PATH = ROOT / "data" / "danger_zones.json"
++
++# 1. Load the History
++df = pd.read_csv(DATA_PATH)
++
++# 2. FILTER: Isolate "High Regret" Transactions
++regret_tx = df[df['regret'] == True]
++
++# 3. CLUSTER: Group by Location (Lat/Lng)
++danger_zones = regret_tx.groupby(['merchant', 'lat', 'lng']).size().reset_index(name='regret_count')
++
++# 4. THRESHOLD: Only flag places with >= 1 regret
++confirmed_danger_zones = danger_zones[danger_zones['regret_count'] >= 1]
++
++print("\nIDENTIFIED DANGER ZONES")
++print("These coordinates should be sent to the iPhone to create Geofences:")
++print("-" * 60)
++print(confirmed_danger_zones[['merchant', 'lat', 'lng', 'regret_count']])
++
++# 5. Export for the App
++OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
++confirmed_danger_zones.to_json(OUT_PATH, orient="records")
++print(f"\nSaved to: {OUT_PATH}")
+diff --git a/purchase_predictor/src/generate_data.py b/purchase_predictor/src/generate_data.py
+new file mode 100644
+index 0000000..dcbbbc1
+--- /dev/null
++++ b/purchase_predictor/src/generate_data.py
+@@ -0,0 +1,48 @@
++import pandas as pd
++import numpy as np
++import random
++from pathlib import Path
++
++# ---- Config ----
++N_SAMPLES = 10000
++ROOT = Path(__file__).resolve().parents[1]
++OUT_PATH = ROOT / "data" / "synthetic_training_data.csv"
++
++# ---- Generate features ----
++data = {
++    "distance_to_merchant": np.random.randint(0, 500, N_SAMPLES),   # meters
++    "hour_of_day": np.random.randint(0, 24, N_SAMPLES),
++    "is_weekend": np.random.choice([0, 1], N_SAMPLES),
++    "budget_utilization": np.random.uniform(0, 1, N_SAMPLES),       # 0..1
++    "merchant_regret_rate": np.random.uniform(0, 1, N_SAMPLES),     # 0..1
++    "dwell_time": np.random.randint(0, 600, N_SAMPLES),             # seconds
++}
++
++df = pd.DataFrame(data)
++
++# ---- Labeling logic (target) ----
++def labeling_logic(row):
++    score = 0.0
++    if row["merchant_regret_rate"] > 0.7:
++        score += 0.4
++    if row["hour_of_day"] > 20:
++        score += 0.2
++    if row["budget_utilization"] > 0.8:
++        score += 0.3
++    if row["distance_to_merchant"] < 50:
++        score += 0.2
++
++    # add noise (humans aren't deterministic)
++    probability = min(1.0, max(0.0, score + random.uniform(-0.1, 0.1)))
++    return 1 if probability > 0.6 else 0
++
++df["purchase_occurred"] = df.apply(labeling_logic, axis=1)
++
++# ---- Save ----
++OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
++df.to_csv(OUT_PATH, index=False)
++
++print("Data generated!")
++print("Saved to:", OUT_PATH)
++print("Label ratio:")
++print(df["purchase_occurred"].value_counts(normalize=True))
+diff --git a/purchase_predictor/src/generate_history.py b/purchase_predictor/src/generate_history.py
+new file mode 100644
+index 0000000..064f882
+--- /dev/null
++++ b/purchase_predictor/src/generate_history.py
+@@ -0,0 +1,58 @@
++import pandas as pd
++import numpy as np
++import random
++from datetime import datetime, timedelta
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++OUT_PATH = ROOT / "data" / "user_transaction_history.csv"
++
++# --- 1. DEFINE LOCATIONS (The "Clusters") ---
++LOCATIONS = {
++    "The Dive Bar": {"lat": 40.444, "lng": -79.943, "category": "Nightlife", "risk_factor": "High"},
++    "Whole Foods":  {"lat": 40.456, "lng": -79.920, "category": "Grocery",   "risk_factor": "Low"},
++    "Tech Store":   {"lat": 40.430, "lng": -79.950, "category": "Shopping",  "risk_factor": "Medium"}
++}
++
++# --- 2. GENERATE 3 MONTHS OF TRANSACTIONS ---
++data = []
++start_date = datetime.now() - timedelta(days=90)
++
++for _ in range(50):
++    merchant_name = random.choice(list(LOCATIONS.keys()))
++    loc_data = LOCATIONS[merchant_name]
++
++    days_offset = random.randint(0, 90)
++    tx_time = start_date + timedelta(days=days_offset)
++
++    if merchant_name == "The Dive Bar":
++        amount = random.uniform(50, 150)
++        is_regret = True
++        hour = 23
++    elif merchant_name == "Whole Foods":
++        amount = random.uniform(20, 80)
++        is_regret = False
++        hour = 14
++    else:
++        amount = random.uniform(100, 500)
++        is_regret = random.choice([True, False])
++        hour = 16
++
++    data.append({
++        "merchant": merchant_name,
++        "amount": round(amount, 2),
++        "date": tx_time.strftime("%Y-%m-%d"),
++        "hour": hour,
++        "lat": loc_data["lat"],
++        "lng": loc_data["lng"],
++        "regret": is_regret
++    })
++
++# --- 3. SAVE TO CSV ---
++df = pd.DataFrame(data)
++OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
++df.to_csv(OUT_PATH, index=False)
++
++print("History Generated:", OUT_PATH)
++print("\n--- SAMPLE DATA ---")
++print(df.head())
+diff --git a/purchase_predictor/src/train.py b/purchase_predictor/src/train.py
+new file mode 100644
+index 0000000..ad68ece
+--- /dev/null
++++ b/purchase_predictor/src/train.py
+@@ -0,0 +1,106 @@
++import os
++import json
++import pandas as pd
++import xgboost as xgb
++from pathlib import Path
++
++from sklearn.model_selection import train_test_split
++from sklearn.metrics import (
++    accuracy_score,
++    precision_score,
++    recall_score,
++    f1_score,
++    roc_auc_score,
++    confusion_matrix,
++    classification_report,
++)
++
++# ----------------------------
++# Config
++# ----------------------------
++ROOT = Path(__file__).resolve().parents[1]
++DATA_PATH = ROOT / "data" / "synthetic_training_data.csv"
++MODEL_PATH = ROOT / "models" / "purchase_predictor.json"
++META_PATH = ROOT / "models" / "purchase_predictor_meta.json"
++
++DEFAULT_THRESHOLD = 0.70
++
++# ----------------------------
++# 1) Load data
++# ----------------------------
++df = pd.read_csv(DATA_PATH)
++
++TARGET = "purchase_occurred"
++FEATURES = [c for c in df.columns if c != TARGET]
++
++X = df[FEATURES]
++y = df[TARGET]
++
++print(f"Loaded {len(df)} rows")
++print("Label distribution:")
++print(y.value_counts(normalize=True).rename("ratio"))
++
++# ----------------------------
++# 2) Train/test split (stratified)
++# ----------------------------
++X_train, X_test, y_train, y_test = train_test_split(
++    X, y, test_size=0.2, random_state=42, stratify=y,
++)
++
++# ----------------------------
++# 3) Train XGBoost
++# ----------------------------
++model = xgb.XGBClassifier(
++    max_depth=6,
++    learning_rate=0.05,
++    n_estimators=200,
++    subsample=0.9,
++    colsample_bytree=0.9,
++    reg_lambda=1.0,
++    eval_metric="logloss",
++    random_state=42,
++)
++
++print("\nTraining model...")
++model.fit(X_train, y_train)
++
++# ----------------------------
++# 4) Evaluate
++# ----------------------------
++probs = model.predict_proba(X_test)[:, 1]
++threshold = DEFAULT_THRESHOLD
++preds = (probs >= threshold).astype(int)
++
++acc = accuracy_score(y_test, preds)
++prec = precision_score(y_test, preds, zero_division=0)
++rec = recall_score(y_test, preds, zero_division=0)
++f1 = f1_score(y_test, preds, zero_division=0)
++auc = roc_auc_score(y_test, probs)
++cm = confusion_matrix(y_test, preds)
++
++print(f"\n--- Metrics (threshold={threshold:.2f}) ---")
++print(f"Accuracy : {acc:.3f}")
++print(f"Precision: {prec:.3f}")
++print(f"Recall   : {rec:.3f}")
++print(f"F1       : {f1:.3f}")
++print(f"AUC      : {auc:.3f}")
++print(f"\nConfusion Matrix:\n{cm}")
++print(f"\n{classification_report(y_test, preds, zero_division=0)}")
++
++# ----------------------------
++# 5) Save model + metadata
++# ----------------------------
++MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
++model.save_model(str(MODEL_PATH))
++
++meta = {
++    "model_type": "xgboost",
++    "feature_names": FEATURES,
++    "threshold": threshold,
++    "notes": "Probability threshold used for nudges. Keep feature order consistent at inference.",
++}
++with open(META_PATH, "w") as f:
++    json.dump(meta, f, indent=2)
++
++print(f"\nSaved model to: {MODEL_PATH}")
++print(f"Saved metadata to: {META_PATH}")
+diff --git a/purchase_predictor/src/train_sklearn_coreml.py b/purchase_predictor/src/train_sklearn_coreml.py
+new file mode 100644
+index 0000000..bb1e39a
+--- /dev/null
++++ b/purchase_predictor/src/train_sklearn_coreml.py
+@@ -0,0 +1,43 @@
++from pathlib import Path
++import pandas as pd
++from sklearn.model_selection import train_test_split
++from sklearn.pipeline import Pipeline
++from sklearn.preprocessing import StandardScaler
++from sklearn.linear_model import LogisticRegression
++from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
++import joblib
++
++ROOT = Path(__file__).resolve().parent.parent
++DATA = ROOT / "data" / "synthetic_training_data.csv"
++MODELS = ROOT / "models"
++MODELS.mkdir(exist_ok=True)
++
++df = pd.read_csv(DATA)
++X = df.drop("purchase_occurred", axis=1)
++y = df["purchase_occurred"]
++
++X_train, X_test, y_train, y_test = train_test_split(
++    X, y, test_size=0.2, random_state=42, stratify=y
++)
++
++model = Pipeline([
++    ("scaler", StandardScaler()),
++    ("lr", LogisticRegression(max_iter=2000, class_weight="balanced"))
++])
++
++print("Training LogisticRegression (CoreML-friendly)...")
++model.fit(X_train, y_train)
++
++probs = model.predict_proba(X_test)[:, 1]
++threshold = 0.70
++preds = (probs >= threshold).astype(int)
++
++print(f"Accuracy : {accuracy_score(y_test, preds):.3f}")
++print(f"Precision: {precision_score(y_test, preds, zero_division=0):.3f}")
++print(f"Recall   : {recall_score(y_test, preds, zero_division=0):.3f}")
++print(f"F1       : {f1_score(y_test, preds, zero_division=0):.3f}")
++print(f"AUC      : {roc_auc_score(y_test, probs):.3f}")
++
++out = MODELS / "purchase_predictor_sklearn.joblib"
++joblib.dump(model, out)
++print("Saved:", out)
+diff --git a/pyproject.toml b/pyproject.toml
+index be2e18d..16f30f3 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -13,4 +13,9 @@ dependencies = [
+     "google-api-python-client>=2.138.0",
+     "python-dotenv>=1.0.0",
+     "openai>=1.0.0",
++    # Purchase Predictor ML dependencies
++    "pandas>=2.0.0",
++    "numpy>=1.24.0",
++    "scikit-learn>=1.3.0",
++    "xgboost>=2.0.0",
+ ]
+diff --git a/server_py/main.py b/server_py/main.py
+index 556974b..ece0088 100644
+--- a/server_py/main.py
++++ b/server_py/main.py
+@@ -664,6 +664,121 @@ async def advisor_insights(request: Request):
+         return JSONResponse({"error": str(e)}, status_code=500)
+ 
+ 
++# --- PURCHASE PREDICTOR INTEGRATION ---
++from predictor_service import predictor_service
++
++@app.on_event("startup")
++async def load_predictor():
++    """Pre-load the purchase prediction model at server startup."""
++    predictor_service.load()
++
++
++@app.get("/api/predictor/danger-zones")
++async def get_danger_zones():
++    """Return all identified danger zones with geofence coordinates."""
++    try:
++        zones = predictor_service.get_danger_zones()
++        return {"danger_zones": zones, "count": len(zones)}
++    except Exception as e:
++        print(f"Danger zones error: {e}")
++        return JSONResponse({"error": str(e)}, status_code=500)
++
++
++@app.post("/api/predictor/predict")
++async def predict_purchase(request: Request):
++    """
++    Predict purchase probability given contextual features.
++
++    Body:
++    {
++        "distance_to_merchant": 30,       // meters
++        "hour_of_day": 23,                // optional, auto-detected if missing
++        "is_weekend": 1,                  // optional, auto-detected if missing
++        "budget_utilization": 0.85,       // 0.0-1.0
++        "merchant_regret_rate": 0.7,      // 0.0-1.0
++        "dwell_time": 120,               // seconds
++        "lat": 40.444,                    // optional, for danger zone check
++        "lng": -79.943                    // optional, for danger zone check
++    }
++    """
++    try:
++        body = await request.json()
++
++        lat = body.pop("lat", None)
++        lng = body.pop("lng", None)
++
++        result = predictor_service.predict_for_transaction(
++            distance_meters=body.get("distance_to_merchant", 100),
++            budget_utilization=body.get("budget_utilization", 0.5),
++            merchant_regret_rate=body.get("merchant_regret_rate", 0.0),
++            dwell_time_seconds=body.get("dwell_time", 0),
++            lat=lat,
++            lng=lng,
++        )
++        return result
++    except Exception as e:
++        print(f"Prediction error: {e}")
++        return JSONResponse({"error": str(e)}, status_code=500)
++
++
++@app.post("/api/predictor/check-location")
++async def check_location(request: Request):
++    """
++    Check if the user's current location is in a danger zone.
++
++    Body: { "lat": 40.444, "lng": -79.943 }
++    """
++    try:
++        body = await request.json()
++        lat = body.get("lat")
++        lng = body.get("lng")
++
++        if lat is None or lng is None:
++            return JSONResponse({"error": "lat and lng are required"}, status_code=400)
++
++        zone = predictor_service.check_danger_zone(lat, lng)
++        return {
++            "in_danger_zone": zone is not None,
++            "danger_zone": zone,
++        }
++    except Exception as e:
++        print(f"Location check error: {e}")
++        return JSONResponse({"error": str(e)}, status_code=500)
++
++
++@app.post("/api/predictor/batch-predict")
++async def batch_predict(request: Request):
++    """
++    Run predictions on multiple transactions for analytics.
++
++    Body: { "transactions": [ { ...features... }, ... ] }
++    """
++    try:
++        body = await request.json()
++        transactions = body.get("transactions", [])
++
++        results = []
++        for txn in transactions[:50]:  # Limit to 50 per batch
++            features = {
++                "distance_to_merchant": txn.get("distance_to_merchant", 100),
++                "hour_of_day": txn.get("hour_of_day", 12),
++                "is_weekend": txn.get("is_weekend", 0),
++                "budget_utilization": txn.get("budget_utilization", 0.5),
++                "merchant_regret_rate": txn.get("merchant_regret_rate", 0.0),
++                "dwell_time": txn.get("dwell_time", 0),
++            }
++            prediction = predictor_service.predict(features)
++            prediction["transaction_id"] = txn.get("transaction_id", None)
++            results.append(prediction)
++
++        return {"predictions": results, "count": len(results)}
++    except Exception as e:
++        print(f"Batch prediction error: {e}")
++        return JSONResponse({"error": str(e)}, status_code=500)
++
++# --- END PURCHASE PREDICTOR INTEGRATION ---
++
++
+ if __name__ == "__main__":
+     import uvicorn
+     port = int(os.environ.get("PORT", "5000"))
+diff --git a/server_py/predictor_service.py b/server_py/predictor_service.py
+new file mode 100644
+index 0000000..cc9f91e
+--- /dev/null
++++ b/server_py/predictor_service.py
+@@ -0,0 +1,261 @@
++"""
++Purchase Predictor Service
++
++Provides real-time purchase prediction using the trained XGBoost model
++and serves danger zone data from the ML pipeline.
++
++Integrated from: https://github.com/Abhinavvvkk07/pp_roots
++"""
++
++import json
++import os
++import logging
++from pathlib import Path
++from typing import Dict, List, Optional, Any
++from datetime import datetime
++
++logger = logging.getLogger(__name__)
++
++# Paths relative to the project root
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++PP_ROOT = PROJECT_ROOT / "purchase_predictor"
++MODEL_PATH = PP_ROOT / "models" / "purchase_predictor.json"
++META_PATH = PP_ROOT / "models" / "purchase_predictor_meta.json"
++DANGER_ZONES_PATH = PP_ROOT / "data" / "danger_zones.json"
++
++
++class PurchasePredictorService:
++    """
++    Server-side purchase prediction using XGBoost.
++    Loads the trained model once and serves predictions via API.
++    """
++
++    def __init__(self):
++        self.model = None
++        self.metadata: Dict[str, Any] = {}
++        self.feature_names: List[str] = []
++        self.threshold: float = 0.70
++        self.danger_zones: List[Dict] = []
++        self._loaded = False
++
++    def load(self) -> bool:
++        """Load model, metadata, and danger zones. Returns True if successful."""
++        if self._loaded:
++            return True
++
++        try:
++            # Load metadata
++            if META_PATH.exists():
++                with open(META_PATH) as f:
++                    self.metadata = json.load(f)
++                self.feature_names = self.metadata.get("feature_names", [])
++                self.threshold = self.metadata.get("threshold", 0.70)
++                logger.info(f"Loaded model metadata: {len(self.feature_names)} features, threshold={self.threshold}")
++            else:
++                # Use default feature names if no metadata file
++                self.feature_names = [
++                    "distance_to_merchant",
++                    "hour_of_day",
++                    "is_weekend",
++                    "budget_utilization",
++                    "merchant_regret_rate",
++                    "dwell_time",
++                ]
++                self.threshold = 0.70
++                logger.warning("No model metadata found, using defaults")
++
++            # Load XGBoost model (optional — predict will use heuristic fallback if missing)
++            if MODEL_PATH.exists():
++                try:
++                    import xgboost as xgb
++                    self.model = xgb.XGBClassifier()
++                    self.model.load_model(str(MODEL_PATH))
++                    logger.info("XGBoost model loaded successfully")
++                except ImportError:
++                    logger.warning("xgboost not installed — using heuristic predictor")
++                    self.model = None
++                except Exception as e:
++                    logger.warning(f"Failed to load XGBoost model: {e} — using heuristic predictor")
++                    self.model = None
++            else:
++                logger.warning(f"Model file not found at {MODEL_PATH} — using heuristic predictor")
++
++            # Load danger zones
++            if DANGER_ZONES_PATH.exists():
++                with open(DANGER_ZONES_PATH) as f:
++                    self.danger_zones = json.load(f)
++                logger.info(f"Loaded {len(self.danger_zones)} danger zones")
++            else:
++                self.danger_zones = []
++                logger.warning("No danger zones file found")
++
++            self._loaded = True
++            return True
++
++        except Exception as e:
++            logger.error(f"Failed to load predictor service: {e}")
++            return False
++
++    def predict(self, features: Dict[str, float]) -> Dict[str, Any]:
++        """
++        Predict purchase probability for a single observation.
++
++        Args:
++            features: Dict with keys matching self.feature_names
++                - distance_to_merchant: meters (0-500)
++                - hour_of_day: 0-23
++                - is_weekend: 0 or 1
++                - budget_utilization: 0.0-1.0
++                - merchant_regret_rate: 0.0-1.0
++                - dwell_time: seconds (0-600)
++
++        Returns:
++            Dict with:
++                - probability: float (0.0-1.0)
++                - should_nudge: bool
++                - risk_level: "low" | "medium" | "high"
++                - threshold: float
++                - model_type: "xgboost" | "heuristic"
++        """
++        self.load()
++
++        # Validate and order features
++        ordered_values = []
++        for fname in self.feature_names:
++            val = features.get(fname, 0.0)
++            ordered_values.append(float(val))
++
++        if self.model is not None:
++            # Use XGBoost model
++            try:
++                import pandas as pd
++                input_df = pd.DataFrame([dict(zip(self.feature_names, ordered_values))])
++                proba = float(self.model.predict_proba(input_df)[:, 1][0])
++                model_type = "xgboost"
++            except Exception as e:
++                logger.warning(f"XGBoost prediction failed: {e}, falling back to heuristic")
++                proba = self._heuristic_predict(features)
++                model_type = "heuristic"
++        else:
++            # Heuristic fallback (mirrors the labeling logic from generate_data.py)
++            proba = self._heuristic_predict(features)
++            model_type = "heuristic"
++
++        should_nudge = proba >= self.threshold
++
++        if proba >= 0.80:
++            risk_level = "high"
++        elif proba >= 0.50:
++            risk_level = "medium"
++        else:
++            risk_level = "low"
++
++        return {
++            "probability": round(proba, 4),
++            "should_nudge": should_nudge,
++            "risk_level": risk_level,
++            "threshold": self.threshold,
++            "model_type": model_type,
++        }
++
++    def _heuristic_predict(self, features: Dict[str, float]) -> float:
++        """Fallback heuristic prediction matching the training data labeling logic."""
++        score = 0.0
++
++        if features.get("merchant_regret_rate", 0) > 0.7:
++            score += 0.4
++        if features.get("hour_of_day", 0) > 20:
++            score += 0.2
++        if features.get("budget_utilization", 0) > 0.8:
++            score += 0.3
++        if features.get("distance_to_merchant", 500) < 50:
++            score += 0.2
++
++        return min(1.0, max(0.0, score))
++
++    def get_danger_zones(self) -> List[Dict]:
++        """Return list of danger zone locations with regret data."""
++        self.load()
++        return self.danger_zones
++
++    def check_danger_zone(self, lat: float, lng: float, radius_km: float = 0.5) -> Optional[Dict]:
++        """
++        Check if a coordinate is within a danger zone.
++
++        Args:
++            lat: Latitude
++            lng: Longitude
++            radius_km: Matching radius in km (default 0.5km)
++
++        Returns:
++            The matching danger zone dict, or None if not in a zone.
++        """
++        self.load()
++        import math
++
++        for zone in self.danger_zones:
++            zone_lat = zone.get("lat", 0)
++            zone_lng = zone.get("lng", 0)
++
++            # Haversine approximation for small distances
++            dlat = math.radians(lat - zone_lat)
++            dlng = math.radians(lng - zone_lng)
++            a = (math.sin(dlat / 2) ** 2 +
++                 math.cos(math.radians(zone_lat)) * math.cos(math.radians(lat)) *
++                 math.sin(dlng / 2) ** 2)
++            distance_km = 6371 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
++
++            if distance_km <= radius_km:
++                return {**zone, "distance_km": round(distance_km, 3)}
++
++        return None
++
++    def predict_for_transaction(
++        self,
++        distance_meters: float,
++        budget_utilization: float,
++        merchant_regret_rate: float,
++        dwell_time_seconds: float = 0,
++        lat: Optional[float] = None,
++        lng: Optional[float] = None,
++    ) -> Dict[str, Any]:
++        """
++        High-level prediction combining model output with danger zone check.
++        Convenience method for the API layer.
++        """
++        now = datetime.now()
++
++        features = {
++            "distance_to_merchant": distance_meters,
++            "hour_of_day": now.hour,
++            "is_weekend": 1 if now.weekday() >= 5 else 0,
++            "budget_utilization": budget_utilization,
++            "merchant_regret_rate": merchant_regret_rate,
++            "dwell_time": dwell_time_seconds,
++        }
++
++        prediction = self.predict(features)
++
++        # Add danger zone info if coordinates provided
++        danger_zone = None
++        if lat is not None and lng is not None:
++            danger_zone = self.check_danger_zone(lat, lng)
++
++        if danger_zone:
++            prediction["in_danger_zone"] = True
++            prediction["danger_zone"] = danger_zone
++            # Boost risk if in a danger zone
++            if prediction["risk_level"] == "medium":
++                prediction["risk_level"] = "high"
++            if not prediction["should_nudge"] and prediction["probability"] >= 0.50:
++                prediction["should_nudge"] = True
++                prediction["nudge_reason"] = "danger_zone_override"
++        else:
++            prediction["in_danger_zone"] = False
++            prediction["danger_zone"] = None
++
++        return prediction
++
++
++# Module-level singleton
++predictor_service = PurchasePredictorService()
